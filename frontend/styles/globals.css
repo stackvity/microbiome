@@ -1,26 +1,90 @@
+/* Imports base Tailwind styles */
 @import "tailwindcss";
 
+/* Define CSS Variables for Light Mode based on ui-design.md */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Core Background/Foreground */
+  --background: 0 0% 100%; /* #FFFFFF */
+  --foreground: 0 0% 13%; /* #212121 */
+
+  /* Brand/Primary */
+  --primary: 221 100% 58%; /* #2979FF */
+  --primary-foreground: 0 0% 100%; /* #FFFFFF */
+
+  /* Muted/Secondary Text & Backgrounds */
+  --muted: 0 0% 96%; /* #F5F5F5 */
+  --muted-foreground: 0 0% 38%; /* #616161 */
+
+  /* Accent/Subtle Backgrounds */
+  --accent: 207 95% 94%; /* #E3F2FD */
+  --accent-foreground: 221 100% 58%; /* #2979FF - Example: Text on Accent BG might be primary */
+
+  /* Destructive/Error */
+  --destructive: 0 66% 47%; /* #C62828 */
+  --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+
+  /* Success */
+  --success: 123 41% 39%; /* #388E3C */
+  --success-foreground: 0 0% 100%; /* #FFFFFF */
+
+  /* Borders & Inputs */
+  --border: 0 0% 88%; /* #E0E0E0 */
+  --input: 0 0% 100%; /* #FFFFFF - Background for inputs */
+  --ring: 221 100% 58%; /* #2979FF - Focus Ring, same as primary */
+
+  /* Spacing (Examples - Usually rely on Tailwind scale directly) */
+  /* --spacing-1: 0.25rem; */
+  /* --spacing-2: 0.5rem; */
+  /* --spacing-4: 1rem; */
+  /* --spacing-6: 1.5rem; */
+
+  /* Font */
+  /* Assumes Inter is loaded via app/layout.tsx or similar */
+  --font-inter: "Inter", sans-serif;
+  /* --font-mono: monospace; */ /* Uncomment and define if a specific mono font is used */
+
+  /* Radius (Example - If standard Tailwind radii are overridden) */
+  /* --radius: 0.5rem; */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/* Define CSS Variables for Dark Mode */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Redefine variables for dark mode - Example inversions/adjustments */
+    --background: 0 0% 4%; /* #0a0a0a */
+    --foreground: 0 0% 93%; /* #ededed */
+    --primary: 221 100% 68%; /* Lighter Blue for contrast */
+    --primary-foreground: 0 0% 10%; /* Darker text on lighter primary */
+    --muted: 0 0% 10%; /* Dark Gray */
+    --muted-foreground: 0 0% 60%; /* Lighter Gray */
+    --accent: 210 40% 15%; /* Darker Blue */
+    --accent-foreground: 0 0% 93%; /* Light text on accent */
+    --destructive: 0 70% 55%; /* Brighter Red */
+    --destructive-foreground: 0 0% 10%; /* Dark text on bright red */
+    --success: 125 50% 55%; /* Brighter Green */
+    --success-foreground: 0 0% 10%; /* Dark text on bright green */
+    --border: 0 0% 15%; /* Dark border */
+    --input: 0 0% 10%; /* Dark input background */
+    --ring: 221 100% 68%; /* Lighter focus ring */
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Apply base theme settings using CSS variables via Tailwind's @theme */
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --font-sans: var(--font-inter); /* Use the defined Inter font variable */
+  /* --font-mono: var(--font-mono); */ /* Uncomment if mono font needed */
+
+  /* Map other Tailwind theme keys to CSS vars if necessary */
+  /* --border-radius: var(--radius); */
 }
+
+/* Base body styles using CSS variables */
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  /* font-family is now handled by @theme / Tailwind base */
+}
+
+/* Define any other global styles or base element styles here */
