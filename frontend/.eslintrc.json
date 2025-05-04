@@ -1,6 +1,31 @@
+// File: frontend/.eslintrc.json
+// Rationale: Finalized ESLint configuration enforcing project code style (Airbnb TS base) and quality rules.
+// Task ID: FE-001, FE-054
+// Status: Revised based on Mandatory Recommendation A.1.
+
 {
   "extends": [
+    // Base configuration using Airbnb TypeScript standard
+    "airbnb-typescript",
+    "airbnb/hooks",
+    // Next.js specific rules, including core-web-vitals
     "next/core-web-vitals",
-    "next/typescript"
-  ]
+    // Disables ESLint rules that conflict with Prettier
+    "prettier"
+  ],
+  // Specifies the parser options, linking to tsconfig.json for type-aware linting
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
+  "rules": {
+    // Optional: Add project-specific rule overrides here if necessary
+    // Example: Relaxing rule for default exports common in Next.js pages
+    "import/prefer-default-export": "off",
+    // Example: Allowing JSX in .tsx files
+    "react/jsx-filename-extension": [1, { "extensions": [".tsx"] }],
+    // Example: Allowing prop spreading for component libraries like shadcn/ui
+    "react/jsx-props-no-spreading": "off",
+    // Ensure React is in scope - less needed with newer React/Next.js versions
+    "react/react-in-jsx-scope": "off"
+  }
 }

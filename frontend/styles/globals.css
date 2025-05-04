@@ -32,19 +32,9 @@
   --input: 0 0% 100%; /* #FFFFFF - Background for inputs */
   --ring: 221 100% 58%; /* #2979FF - Focus Ring, same as primary */
 
-  /* Spacing (Examples - Usually rely on Tailwind scale directly) */
-  /* --spacing-1: 0.25rem; */
-  /* --spacing-2: 0.5rem; */
-  /* --spacing-4: 1rem; */
-  /* --spacing-6: 1.5rem; */
-
   /* Font */
   /* Assumes Inter is loaded via app/layout.tsx or similar */
   --font-inter: "Inter", sans-serif;
-  /* --font-mono: monospace; */ /* Uncomment and define if a specific mono font is used */
-
-  /* Radius (Example - If standard Tailwind radii are overridden) */
-  /* --radius: 0.5rem; */
 }
 
 /* Define CSS Variables for Dark Mode */
@@ -73,11 +63,8 @@
 @theme {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
-  --font-sans: var(--font-inter); /* Use the defined Inter font variable */
-  /* --font-mono: var(--font-mono); */ /* Uncomment if mono font needed */
-
+  --font-sans: var(--font-inter);
   /* Map other Tailwind theme keys to CSS vars if necessary */
-  /* --border-radius: var(--radius); */
 }
 
 /* Base body styles using CSS variables */

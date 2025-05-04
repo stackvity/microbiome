@@ -1,3 +1,8 @@
+// File: frontend/tsconfig.json
+// Rationale: Configure TypeScript compiler options for the project, ensuring strict checks are enabled.
+// Task ID: FE-001
+// Status: No changes required based on analysis findings.
+
 {
   "compilerOptions": {
     "target": "ES2017",

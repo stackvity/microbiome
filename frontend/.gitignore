@@ -1,3 +1,8 @@
+# File: frontend/.gitignore
+# Rationale: Specify files and directories to be ignored by Git (node_modules, .env*, .next/, dist/, logs, etc.).
+# Task ID: FE-001, FE-003
+# Status: No changes required based on analysis findings.
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
