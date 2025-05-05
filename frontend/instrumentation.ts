@@ -1,45 +1,30 @@
-// frontend/instrumentation.ts
-// Sentry SDK initialization for server/edge runtimes (Next.js App Router).
+// File: frontend/instrumentation.ts
+// Rationale: Recommended Sentry SDK initialization point for Next.js App Router, handling both server/client init.
+// Task ID: FE-021, FE-088
+// Status: Revised based on recommendations (Added environment context).
 
-let isSentryInitialized = false;
+import * as Sentry from "@sentry/nextjs";
 
-export async function register() {
-  if (process.env.NEXT_RUNTIME === 'nodejs' || process.env.NEXT_RUNTIME === 'edge') {
-    if (isSentryInitialized) {
-      return;
-    }
-
-    const Sentry = await import('@sentry/nextjs');
-
-    Sentry.init({
-      // DSN loaded from environment variables is critical.
-      dsn: process.env.SENTRY_DSN,
-
-      // Adjust sample rates for production vs development. Review these values based on monitoring needs and cost.
-      tracesSampleRate: process.env.NODE_ENV === 'development' ? 1.0 : 0.1,
-      profilesSampleRate: process.env.NODE_ENV === 'development' ? 1.0 : 0.1,
-
-      // Enable debug logging only in development.
-      debug: process.env.NODE_ENV === 'development',
-
-      // Optional: Client-side PII scrubbing hook (implement if needed for privacy).
-      // beforeSend(event, hint) {
-      //   // Example: Basic scrubbing (replace with more robust logic as needed)
-      //   // WARNING: This is a simple example and might not cover all PII cases.
-      //   try {
-      //     if (event.request?.data) {
-      //       // Modify or delete sensitive fields from event.request.data
-      //     }
-      //     // Scrub user identifiable info from breadcrumbs, etc.
-      //   } catch (e) {
-      //     console.error("Error in Sentry beforeSend:", e);
-      //   }
-      //   return event;
-      // },
-    });
-
-    isSentryInitialized = true;
-  }
-  // Note: Client-side Sentry initialization is typically handled elsewhere
-  // (e.g., root layout or sentry.client.config.js). Verify in fullstack-code.
+if (process.env.NEXT_RUNTIME === "nodejs" && process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    tracesSampleRate: 1.0,
+    profilesSampleRate: 1.0,
+    // Distinguish events from different deployment environments
+    environment: process.env.NODE_ENV || "development",
+    debug: process.env.NODE_ENV === "development",
+  });
+  console.log("Sentry initialized for Node.js runtime.");
+} else if (process.env.NEXT_RUNTIME === "edge" && process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    tracesSampleRate: 1.0,
+    // Distinguish events from different deployment environments
+    environment: process.env.NODE_ENV || "development",
+    debug: process.env.NODE_ENV === "development",
+  });
+  console.log("Sentry initialized for Edge runtime.");
 }
+
+// Note: Client-side initialization uses NEXT_PUBLIC_SENTRY_DSN and is handled
+// automatically via Sentry's Next.js configuration (e.g., next.config.js).
