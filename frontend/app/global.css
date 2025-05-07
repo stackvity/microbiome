@@ -1,5 +1,5 @@
 /* Imports base Tailwind styles */
-@import "tailwindcss";
+@import "tailwindcss"; /* Or use @tailwind base; @tailwind components; @tailwind utilities; directly */
 
 /* Define CSS Variables for Light Mode based on ui-design.md */
 :root {

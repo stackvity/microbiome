@@ -1,11 +1,11 @@
 // File: frontend/app/layout.tsx
 // Task IDs: FE-014 (React Query Provider), FE-016 (Routing Layers), FE-051 (Header/Footer), FE-052 (Error Boundary implied), FE-053 (Not Found implied), FE-001 (TS/Tailwind setup), FE-005-R (Global Styles), FE-015 (Zustand implied usage)
 // Description: Root application layout applying global structure (Header/Footer), Providers (ReactQueryProvider, NextAuth SessionProvider), global styles, and root metadata. Using Sonner for toasts.
-// Status: Revised - Applied optional recommendation B.1 (JSDoc for metadata).
+// Status: Revised - Applied optional recommendation B.1 (JSDoc for metadata). Refined for layout tidiness.
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./global.css"; // Apply global styles defined via FE-005-R
+import "./global.css"; // Apply global styles defined via FE-005-R - Path assumes app/global.css
 import ReactQueryProvider from "@/lib/react-query/ReactQueryProvider"; // RQ Provider setup via FE-014
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"; // Added for FE-014 AC
 import { SessionProvider } from "next-auth/react"; // Needed for client-side session access
@@ -41,8 +41,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} flex flex-col min-h-screen`}>
+    <html lang="en" className="scroll-smooth">
+      {" "}
+      {/* Optional: add scroll-smooth */}
+      <body
+        className={`${inter.className} flex min-h-screen flex-col bg-background text-foreground antialiased`}
+      >
+        {" "}
+        {/* Added antialiased and ensured bg/text colors are applied */}
         {/* Provides session context from NextAuth.js */}
         <SessionProvider>
           {/* Provides the QueryClient for TanStack Query */}
@@ -50,7 +56,9 @@ export default function RootLayout({
             {/* Header component defined in FE-BL-005 */}
             <Header />
             {/* Main application content */}
-            <main className="flex-grow container mx-auto px-4 py-8">
+            <main className="flex-grow container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+              {" "}
+              {/* Consistent padding with Header/Footer */}
               {children}
             </main>
             {/* Footer component defined in FE-BL-005 */}
