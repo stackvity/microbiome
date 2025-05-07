@@ -55,7 +55,24 @@ jobs:
         run: npm test -- --coverage
 
       - name: Run dependency vulnerability scan
-        run: npm audit --audit-level=high
+        id: npm-audit
+        run: npm audit --audit-level=high > npm-audit-report.txt || true
+        # The '|| true' allows the workflow to proceed to upload the report even if vulnerabilities fail the audit.
+        # The next step will explicitly fail the job if the audit step itself failed due to vulnerabilities.
+
+      - name: Upload npm audit report
+        if: always() # Ensure the report is uploaded regardless of the audit outcome for review.
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report-${{ github.run_number }}
+          path: frontend/npm-audit-report.txt
+          if-no-files-found: warn # Don't fail the workflow if the report file isn't found for some reason
+
+      - name: Check npm audit result and fail job if needed
+        if: steps.npm-audit.outcome == 'failure' && steps.npm-audit.conclusion != 'skipped' # Fail if npm audit itself failed due to vulnerabilities
+        run: |
+          echo "npm audit found vulnerabilities at or above the specified audit-level. See uploaded report."
+          exit 1
 
       - name: Build application
         run: npm run build

@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run lint-staged for the frontend package.
+# This assumes lint-staged is configured in frontend/lint-staged.config.js
+# and lint-staged is available (e.g., via npx).
+# Task ID: FE-009
+# Status: (Content remains as per baseline analysis, no changes mandated by Rec A.1 for *this file's content*. Functionality depends on A.2 package setup).
+(cd frontend && npx lint-staged) || exit 1

@@ -1,7 +1,7 @@
 // File: frontend/.eslintrc.json
 // Rationale: Finalized ESLint configuration enforcing project code style (Airbnb TS base) and quality rules.
 // Task ID: FE-001, FE-054
-// Status: Revised based on Mandatory Recommendation A.1.
+// Status: Revised based on Mandatory Recommendation A.1. (Content remains as per baseline analysis, no changes mandated by Rec A.1 for *this file's content*)
 
 {
   "extends": [
