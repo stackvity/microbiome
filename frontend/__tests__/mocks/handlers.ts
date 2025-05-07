@@ -1,8 +1,8 @@
 // File: frontend/__tests__/mocks/handlers.ts
 // Task IDs: FE-013, FE-048, FE-049, FE-050
-// Status: Revised based on recommendations. Added validation error mocks, expanded mock data.
+// Status: Revised based on recommendations. Added validation error mocks, expanded mock data, fixed TS2339 & TS18048 errors.
 
-import { http, HttpResponse } from "msw";
+import { http, HttpResponse, type DefaultBodyType } from "msw";
 
 // Use environment variable or default for test consistency
 const MEDUSA_BACKEND_URL =
@@ -143,6 +143,57 @@ const mockCart = {
   },
 };
 
+// --- Interfaces for Request Bodies (Fix for TS2339) ---
+interface AuthCredentials {
+  email?: string;
+  password?: string;
+}
+
+interface CustomerRegistrationData {
+  email?: string;
+  password?: string;
+  first_name?: string;
+  // Add other expected fields if needed
+}
+
+interface VendorRegistrationData extends CustomerRegistrationData {
+  business_name?: string;
+  // Add other expected vendor fields if needed
+}
+
+interface AddLineItemData {
+  variant_id?: string;
+  quantity?: number;
+}
+
+interface UpdateLineItemData {
+  quantity?: number;
+}
+
+interface AddressData {
+  address_1?: string;
+  city?: string;
+  // Add other expected address fields if needed
+}
+
+// --- Interfaces for Path Parameters (Fix for TS2339) ---
+interface ProductParams {
+  productIdOrHandle: string;
+}
+
+interface CartParams {
+  cartId: string;
+}
+
+interface CartLineItemParams {
+  cartId: string;
+  lineItemId: string;
+}
+
+interface AddressParams {
+  addressId: string;
+}
+
 // --- MSW Handlers ---
 
 /**
@@ -154,9 +205,10 @@ export const handlers = [
   http.get(`${MEDUSA_BACKEND_URL}/store/products`, () =>
     HttpResponse.json(mockProducts)
   ),
-  http.get(
+  http.get<ProductParams>( // Explicitly type the PathParams type argument
     `${MEDUSA_BACKEND_URL}/store/products/:productIdOrHandle`,
     ({ params }) => {
+      // Now `params` is typed as ProductParams
       const idOrHandle = params.productIdOrHandle;
       if (idOrHandle === "prod_1" || idOrHandle === "test-probiotic-a") {
         return HttpResponse.json(mockSingleProduct);
@@ -187,47 +239,51 @@ export const handlers = [
   ),
 
   // --- Authentication Mocks (FE-049) ---
-  http.post(`${MEDUSA_BACKEND_URL}/store/auth`, async ({ request }) => {
-    const credentials = await request.json();
-    if (!credentials?.email || !credentials?.password) {
-      // Added validation mock (A.4)
+  http.post<never, AuthCredentials>( // Explicitly type the RequestBody type argument
+    `${MEDUSA_BACKEND_URL}/store/auth`,
+    async ({ request }) => {
+      const credentials = (await request.json()) as AuthCredentials;
+
+      if (!credentials?.email || !credentials?.password) {
+        // Added validation mock (A.4)
+        return HttpResponse.json(
+          {
+            error: {
+              code: "BAD_REQUEST",
+              message: "Email and password are required.",
+            },
+          },
+          { status: 400 }
+        );
+      }
+      if (
+        credentials.email === "test@example.com" &&
+        credentials.password === "password"
+      ) {
+        return HttpResponse.json(mockCustomer);
+      }
+      if (credentials.email === "pending@example.com") {
+        return HttpResponse.json(
+          {
+            error: {
+              code: "VENDOR_NOT_APPROVED",
+              message: "Your vendor application is pending review.",
+            },
+          },
+          { status: 403 }
+        );
+      }
       return HttpResponse.json(
         {
           error: {
-            code: "BAD_REQUEST",
-            message: "Email and password are required.",
+            code: "INVALID_CREDENTIALS",
+            message: "Invalid email or password.",
           },
         },
-        { status: 400 }
+        { status: 401 }
       );
     }
-    if (
-      credentials.email === "test@example.com" &&
-      credentials.password === "password"
-    ) {
-      return HttpResponse.json(mockCustomer);
-    }
-    if (credentials.email === "pending@example.com") {
-      return HttpResponse.json(
-        {
-          error: {
-            code: "VENDOR_NOT_APPROVED",
-            message: "Your vendor application is pending review.",
-          },
-        },
-        { status: 403 }
-      );
-    }
-    return HttpResponse.json(
-      {
-        error: {
-          code: "INVALID_CREDENTIALS",
-          message: "Invalid email or password.",
-        },
-      },
-      { status: 401 }
-    );
-  }),
+  ),
   http.get(`${MEDUSA_BACKEND_URL}/store/auth`, ({ cookies }) => {
     if (cookies.connectsid === "mock-session-id") {
       return HttpResponse.json(mockCustomer);
@@ -240,88 +296,96 @@ export const handlers = [
   ),
 
   // --- Registration Mocks (FE-049) ---
-  http.post(`${MEDUSA_BACKEND_URL}/store/customers`, async ({ request }) => {
-    const regData = await request.json();
-    if (!regData?.email || !regData?.password || !regData?.first_name) {
-      // Added validation mock (A.4)
+  http.post<never, CustomerRegistrationData>( // Type the request body
+    `${MEDUSA_BACKEND_URL}/store/customers`,
+    async ({ request }) => {
+      const regData = (await request.json()) as CustomerRegistrationData; // Assert type
+
+      if (!regData?.email || !regData?.password || !regData?.first_name) {
+        // Added validation mock (A.4)
+        return HttpResponse.json(
+          {
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "Missing required registration fields.",
+            },
+            details: [
+              { field: "email/password/first_name", message: "Required" },
+            ],
+          },
+          { status: 400 }
+        );
+      }
+      if (regData.email === "exists@example.com") {
+        return HttpResponse.json(
+          {
+            error: {
+              code: "EMAIL_ALREADY_EXISTS",
+              message: "An account with this email already exists.",
+            },
+          },
+          { status: 409 }
+        );
+      }
+      // Simulate password too short error (A.4)
+      if (regData.password?.length < 8) {
+        return HttpResponse.json(
+          {
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "Password must be at least 8 characters.",
+            },
+            details: [{ field: "password", message: "Too short" }],
+          },
+          { status: 422 }
+        );
+      }
+      return HttpResponse.json(mockCustomer, { status: 200 });
+    }
+  ),
+  http.post<never, VendorRegistrationData>( // Type the request body
+    `${MEDUSA_BACKEND_URL}/store/vendors`,
+    async ({ request }) => {
+      // Custom endpoint assumed
+      const regData = (await request.json()) as VendorRegistrationData; // Assert type
+
+      if (!regData?.email || !regData?.password || !regData?.business_name) {
+        // Added validation mock (A.4)
+        return HttpResponse.json(
+          {
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "Missing required vendor fields.",
+            },
+          },
+          { status: 400 }
+        );
+      }
+      if (regData.email === "exists@example.com") {
+        return HttpResponse.json(
+          {
+            error: {
+              code: "EMAIL_ALREADY_EXISTS",
+              message: "An account with this email already exists.",
+            },
+          },
+          { status: 409 }
+        );
+      }
       return HttpResponse.json(
         {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Missing required registration fields.",
-          },
-          details: [
-            { field: "email/password/first_name", message: "Required" },
-          ],
-        },
-        { status: 400 }
-      );
-    }
-    if (regData.email === "exists@example.com") {
-      return HttpResponse.json(
-        {
-          error: {
-            code: "EMAIL_ALREADY_EXISTS",
-            message: "An account with this email already exists.",
+          customer: {
+            id: `user_pending_${Date.now()}`,
+            email: regData.email,
+            first_name: regData.first_name,
+            role: "vendor",
+            vendor_status: "pending",
           },
         },
-        { status: 409 }
+        { status: 200 }
       );
     }
-    // Simulate password too short error (A.4)
-    if (regData.password?.length < 8) {
-      return HttpResponse.json(
-        {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Password must be at least 8 characters.",
-          },
-          details: [{ field: "password", message: "Too short" }],
-        },
-        { status: 422 }
-      );
-    }
-    return HttpResponse.json(mockCustomer, { status: 200 });
-  }),
-  http.post(`${MEDUSA_BACKEND_URL}/store/vendors`, async ({ request }) => {
-    // Custom endpoint assumed
-    const regData = await request.json();
-    if (!regData?.email || !regData?.password || !regData?.business_name) {
-      // Added validation mock (A.4)
-      return HttpResponse.json(
-        {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Missing required vendor fields.",
-          },
-        },
-        { status: 400 }
-      );
-    }
-    if (regData.email === "exists@example.com") {
-      return HttpResponse.json(
-        {
-          error: {
-            code: "EMAIL_ALREADY_EXISTS",
-            message: "An account with this email already exists.",
-          },
-        },
-        { status: 409 }
-      );
-    }
-    return HttpResponse.json(
-      {
-        customer: {
-          id: `user_pending_${Date.now()}`,
-          email: regData.email,
-          first_name: regData.first_name,
-          role: "vendor",
-          vendor_status: "pending",
-        },
-      },
-      { status: 200 }
-    );
-  }),
+  ),
 
   // --- Cart Mocks (FE-050) ---
   http.post(`${MEDUSA_BACKEND_URL}/store/carts`, () =>
@@ -336,14 +400,19 @@ export const handlers = [
       },
     })
   ),
-  http.get(`${MEDUSA_BACKEND_URL}/store/carts/:cartId`, ({ params }) => {
-    if (params.cartId === "cart_123") return HttpResponse.json(mockCart);
-    return HttpResponse.json(
-      { error: { code: "NOT_FOUND", message: "Cart not found" } },
-      { status: 404 }
-    );
-  }),
-  http.post(
+  http.get<CartParams>(
+    `${MEDUSA_BACKEND_URL}/store/carts/:cartId`,
+    ({ params }) => {
+      // Type PathParams
+      // Now `params` is typed as CartParams
+      if (params.cartId === "cart_123") return HttpResponse.json(mockCart);
+      return HttpResponse.json(
+        { error: { code: "NOT_FOUND", message: "Cart not found" } },
+        { status: 404 }
+      );
+    }
+  ),
+  http.post<CartParams, AddLineItemData>( // Type PathParams and RequestBody
     `${MEDUSA_BACKEND_URL}/store/carts/:cartId/line-items`,
     async ({ request, params }) => {
       if (params.cartId !== "cart_123")
@@ -351,8 +420,16 @@ export const handlers = [
           { error: { code: "NOT_FOUND", message: "Cart not found" } },
           { status: 404 }
         );
-      const { variant_id, quantity } = await request.json();
-      if (!variant_id || !Number.isInteger(quantity) || quantity <= 0) {
+      const { variant_id, quantity } =
+        (await request.json()) as AddLineItemData; // Assert type
+
+      // Check if quantity is defined and a number before calling Number.isInteger
+      if (
+        !variant_id ||
+        quantity === undefined || // Fix for TS18048
+        !Number.isInteger(quantity) ||
+        quantity <= 0
+      ) {
         // Added validation mock (A.4)
         return HttpResponse.json(
           {
@@ -368,7 +445,7 @@ export const handlers = [
       return HttpResponse.json(mockCart); // Return base mock for simplicity in test setup
     }
   ),
-  http.post(
+  http.post<CartLineItemParams, UpdateLineItemData>( // Type PathParams and RequestBody
     `${MEDUSA_BACKEND_URL}/store/carts/:cartId/line-items/:lineItemId`,
     async ({ request, params }) => {
       if (params.cartId !== "cart_123")
@@ -376,8 +453,14 @@ export const handlers = [
           { error: { code: "NOT_FOUND", message: "Cart not found" } },
           { status: 404 }
         );
-      const { quantity } = await request.json();
-      if (!Number.isInteger(quantity) || quantity <= 0) {
+      const { quantity } = (await request.json()) as UpdateLineItemData; // Assert type
+
+      // Check if quantity is defined and a number before calling Number.isInteger
+      if (
+        quantity === undefined || // Fix for TS18048
+        !Number.isInteger(quantity) ||
+        quantity <= 0
+      ) {
         // Added validation mock (A.4)
         return HttpResponse.json(
           {
@@ -393,7 +476,7 @@ export const handlers = [
       return HttpResponse.json(mockCart);
     }
   ),
-  http.delete(
+  http.delete<CartLineItemParams>( // Type PathParams
     `${MEDUSA_BACKEND_URL}/store/carts/:cartId/line-items/:lineItemId`,
     ({ params }) => {
       if (params.cartId !== "cart_123")
@@ -417,7 +500,7 @@ export const handlers = [
       return HttpResponse.json(mockCustomer);
     return HttpResponse.json({ message: "Not authenticated" }, { status: 401 });
   }),
-  http.post(
+  http.post<never, AddressData>( // Type the request body
     `${MEDUSA_BACKEND_URL}/store/customers/me/addresses`,
     async ({ request, cookies }) => {
       if (cookies.connectsid !== "mock-session-id")
@@ -425,7 +508,8 @@ export const handlers = [
           { message: "Not authenticated" },
           { status: 401 }
         );
-      const addressData = await request.json();
+      const addressData = (await request.json()) as AddressData; // Assert type
+
       if (!addressData?.address_1 || !addressData?.city) {
         // Added validation mock (A.4)
         return HttpResponse.json(
@@ -441,7 +525,7 @@ export const handlers = [
       return HttpResponse.json(mockCustomer); // Simulate success by returning customer
     }
   ),
-  http.post(
+  http.post<AddressParams, AddressData>( // Type PathParams and RequestBody
     `${MEDUSA_BACKEND_URL}/store/customers/me/addresses/:addressId`,
     async ({ request, cookies, params }) => {
       if (cookies.connectsid !== "mock-session-id")
@@ -449,7 +533,8 @@ export const handlers = [
           { message: "Not authenticated" },
           { status: 401 }
         );
-      const addressData = await request.json();
+      const addressData = (await request.json()) as AddressData; // Assert type
+
       if (!addressData?.address_1 || !addressData?.city) {
         // Added validation mock (A.4)
         return HttpResponse.json(
@@ -462,6 +547,7 @@ export const handlers = [
           { status: 400 }
         );
       }
+      // Now `params` is typed as AddressParams
       if (params.addressId !== "addr_1" && params.addressId !== "addr_2")
         return HttpResponse.json(
           { error: { code: "NOT_FOUND", message: "Address not found" } },
@@ -470,7 +556,7 @@ export const handlers = [
       return HttpResponse.json(mockCustomer); // Simulate success
     }
   ),
-  http.delete(
+  http.delete<AddressParams>( // Type PathParams
     `${MEDUSA_BACKEND_URL}/store/customers/me/addresses/:addressId`,
     ({ cookies, params }) => {
       if (cookies.connectsid !== "mock-session-id")
@@ -478,6 +564,7 @@ export const handlers = [
           { message: "Not authenticated" },
           { status: 401 }
         );
+      // Now `params` is typed as AddressParams
       if (params.addressId !== "addr_1" && params.addressId !== "addr_2")
         return HttpResponse.json(
           { error: { code: "NOT_FOUND", message: "Address not found" } },

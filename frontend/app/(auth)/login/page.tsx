@@ -1,8 +1,8 @@
 // File: frontend/app/(auth)/login/page.tsx
 // Task IDs: FE-017, FE-042, FE-045, FE-049, FE-055
 // Description: Revised Login page component integrating RHF/Zod via LoginForm, API submission via useLoginMutation,
-//              and handling loading/error states.
-// Status: Revised based on Recommendations A.1, A.2, A.3, A.4, A.6. Requires LoginForm, useLoginMutation, and related types/schemas.
+//              and handling loading/error states using Sonner for toasts.
+// Status: Revised - Replaced deprecated useToast with Sonner toast functions. Corrected type import path.
 
 "use client";
 
@@ -11,24 +11,25 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form"; // RHF usage is encapsulated in LoginForm, but needed here for setError
 import { zodResolver } from "@hookform/resolvers/zod"; // Needed for type safety potentially, though resolver used in child
-import { toast } from "@/components/ui/use-toast";
+// import { toast } from "@/components/ui/use-toast"; // REMOVE deprecated import
+import { toast } from "sonner"; // IMPORT Sonner toast function directly
 import LoginForm from "@/components/auth/LoginForm"; // Assumed component handling RHF/Zod/UI
 import { useLoginMutation } from "@/hooks/mutations/useAuthMutations"; // Assumed hook for API call
 import { LoginSchema } from "@/lib/zodSchemas"; // Assumed schema exists
-import type { LoginUserInput } from "@/lib/types/auth";
+import type { LoginUserInput } from "@/lib/zodSchemas"; // CORRECTED Import Path
 
 /**
  * Login Page Component.
  * Orchestrates login form submission, using LoginForm for UI/validation
- * and useLoginMutation for API interaction. Handles redirect and error feedback.
+ * and useLoginMutation for API interaction. Handles redirect and error feedback using Sonner.
  */
 export default function LoginPage() {
   const router = useRouter();
+  // NOTE: Assume useLoginMutation hook *does not* internally call the old use-toast
+  // and that error/success feedback should be handled here or passed via callbacks.
   const { mutate: loginUser, isPending } = useLoginMutation(); // Get mutation function and pending state
 
-  // Need form instance to potentially set server errors back onto fields
   const form = useForm<LoginUserInput>({
-    // Resolver likely set within LoginForm, but referencing schema here for safety/type
     resolver: zodResolver(LoginSchema),
     defaultValues: {
       email: "",
@@ -40,28 +41,25 @@ export default function LoginPage() {
   const handleLogin = (data: LoginUserInput) => {
     loginUser(data, {
       onSuccess: (/*responseData*/) => {
-        // Type responseData based on actual API return if needed
-        toast({ title: "Login Successful", description: "Redirecting..." });
-        // Example: Redirect to customer dashboard. More sophisticated routing based
-        // on user role might happen in a central listener or via middleware.
-        // NextAuth callbackUrl might also handle redirection automatically.
+        // Use Sonner's success style
+        toast.success("Login Successful", {
+          description: "Redirecting...",
+        });
         router.push("/account/dashboard");
-        // router.refresh(); // May not be needed if NextAuth handles session update redirects well
+        // Potentially add router.refresh() if session update needs manual trigger
       },
       onError: (error: any) => {
-        // Attempt to extract backend error message for user feedback
         const errorMessage =
           error?.response?.data?.error?.message ||
-          error?.structuredError?.message || // From custom axios interceptor if implemented
+          error?.structuredError?.message ||
           "Login failed. Please check your credentials or try again later.";
 
-        // Attempt to set specific field errors if backend provides them
-        // This depends on the backend error structure and LoginForm accepting 'setError'
-        const fieldErrors = error?.response?.data?.error?.details; // Example structure
+        const fieldErrors = error?.response?.data?.error?.details;
+        let displayedFieldErrors = false;
+
         if (Array.isArray(fieldErrors)) {
           fieldErrors.forEach(
             (fieldError: { field: keyof LoginUserInput; message: string }) => {
-              // Ensure field exists on the form before setting error
               if (
                 fieldError.field &&
                 (fieldError.field === "email" ||
@@ -71,40 +69,21 @@ export default function LoginPage() {
                   type: "server",
                   message: fieldError.message,
                 });
+                displayedFieldErrors = true; // Mark that we handled a specific field error
               }
             }
           );
-          // Show a general toast only if no field-specific errors were set
-          if (
-            !fieldErrors.some(
-              (fe) => fe.field === "email" || fe.field === "password"
-            )
-          ) {
-            toast({
-              title: "Login Failed",
-              description: errorMessage,
-              variant: "destructive",
-            });
-          }
-        } else if (
-          error?.response?.status === 401 ||
-          error?.response?.status === 403
-        ) {
-          // Generic credentials or status error if no field detail provided
-          toast({
-            title: "Login Failed",
+        }
+
+        // Only show a generic error toast if no specific field error was set by RHF's setError
+        // or if it's a generic 401/403/5xx without details
+        if (!displayedFieldErrors) {
+          // Use Sonner's error style
+          toast.error("Login Failed", {
             description: errorMessage,
-            variant: "destructive",
           });
-          // Optionally set a generic error on a root form element if available
+          // Optionally set a generic error on a root form element if LoginForm supports it
           // setError('root.serverError', { type: 'server', message: errorMessage });
-        } else {
-          // Rely on global interceptor for 5xx, but show a toast here too as fallback
-          toast({
-            title: "Login Failed",
-            description: errorMessage,
-            variant: "destructive",
-          });
         }
       },
     });
@@ -115,8 +94,8 @@ export default function LoginPage() {
       <h1 className="text-2xl font-semibold text-center">Login</h1>
       <LoginForm
         onSubmit={handleLogin}
-        isPending={isPending} // Pass loading state to disable button
-        formInstance={form} // Pass the form instance for potential server error setting
+        isPending={isPending}
+        formInstance={form}
       />
       <div className="text-sm text-center text-muted-foreground">
         Don't have an account?{" "}
@@ -134,7 +113,6 @@ export default function LoginPage() {
           Register as Vendor
         </Link>
       </div>
-      {/* TODO: Add Forgot Password Link */}
       <div className="text-sm text-center text-muted-foreground">
         <Link
           href="/forgot-password"

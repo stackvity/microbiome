@@ -4,7 +4,7 @@
 // Status: Revised - No code changes from previous version based on analysis.
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 
 /**
  * Custom Not Found page component, rendered automatically by Next.js for unmatched routes.

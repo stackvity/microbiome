@@ -1,12 +1,30 @@
 // File: frontend/lib/api/axiosInstance.ts
 // Task IDs: FE-010, FE-011, FE-012, FE-024
-// Status: Revised based on recommendations. Assumes HttpOnly cookie authentication.
+// Status: Revised - Attempting minimal augmentation for TS2428 fix.
 
-import axios, { AxiosError } from "axios";
+import axios from "axios";
+// Import the original type with an alias
+import type {
+  AxiosError as OriginalAxiosError,
+  InternalAxiosRequestConfig,
+} from "axios";
 import * as Sentry from "@sentry/nextjs";
-// import { signOut } from 'next-auth/react'; // Import would be needed higher up if called directly
-// import { toast } from 'react-hot-toast'; // Import would be needed higher up if called directly
-// import { getErrorMessageFromCode } from '@/lib/errorMapping'; // Example import for B.1
+// import { signOut } from 'next-auth/react';
+// import { toast } from 'react-hot-toast';
+// import { getErrorMessageFromCode } from '@/lib/errorMapping';
+
+// --- Define Expected Backend Error Structure ---
+interface BackendErrorData {
+  error?: {
+    code?: string;
+    message?: string;
+    details?: any;
+  };
+  code?: string;
+  message?: string;
+  details?: any;
+}
+// --- End Backend Error Structure Definition ---
 
 // Define a type for the structured error added to AxiosError instances
 interface StructuredError {
@@ -16,12 +34,22 @@ interface StructuredError {
   details?: any;
 }
 
-// Extend AxiosError interface to include our custom structured error
+// Extend AxiosError interface - MINIMAL AUGMENTATION
+// Only declare the interface and the added property.
 declare module "axios" {
   export interface AxiosError {
+    // No generic parameters or 'extends Error' here
     structuredError?: StructuredError;
+    // Ensure config is typed correctly if accessed (it is accessed below)
+    // Note: Augmenting config type might be needed if TS still complains here,
+    // but let's try accessing it directly first.
+    // config: InternalAxiosRequestConfig<any>;
   }
 }
+
+// Type alias for usage within this file - Refers to the ORIGINAL AxiosError type
+// The augmentation above adds the property globally, but type hints use the original signature.
+type AxiosError<T = any, D = any> = OriginalAxiosError<T, D>;
 
 const api = axios.create({
   baseURL:
@@ -30,136 +58,144 @@ const api = axios.create({
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-  // Using HttpOnly session cookies for authentication (verified assumption A.1)
   withCredentials: true,
   timeout: 15000, // 15 seconds
 });
 
-// Request interceptor (primarily for logging or adding headers if needed in future)
+// Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Configuration for HttpOnly cookies is handled by `withCredentials: true` above.
-    // No specific token injection needed here for that strategy.
     return config;
   },
   (error: AxiosError) => {
-    // Log unexpected errors during request setup
+    // Uses the original AxiosError type signature
+    // Explicit cast needed if accessing structuredError here
+    // Sentry.captureException(error as CoreAxiosError); // Example if Sentry needs the augmented type
     Sentry.captureException(error, {
+      // Sentry likely handles 'any' or standard Error well
       extra: { context: "Axios Request Interceptor" },
     });
     return Promise.reject(error);
   }
 );
 
-// Response interceptor (handles global error responses)
+// Response interceptor
 api.interceptors.response.use(
-  (response) => response, // Pass through successful responses
-  (error: AxiosError) => {
+  (response) => response,
+  (error: AxiosError<BackendErrorData>) => {
+    // Uses original AxiosError signature + data type
     let errorCode = "NETWORK_ERROR";
     let errorMessage = "Network error. Please check your connection.";
     let errorDetails: any = null;
     let statusCode: number | null = null;
+    let userFriendlyMessage = errorMessage; // Start with default
 
-    if (error.response) {
-      const { data, status } = error.response;
+    // Cast error to access the augmented property type safely when needed
+    const augmentedError = error as OriginalAxiosError<BackendErrorData>;
+
+    if (augmentedError.response) {
+      const backendData = augmentedError.response.data;
+      const status = augmentedError.response.status;
       statusCode = status;
 
-      // Prioritize specific error code from backend response (A.2)
-      errorCode = data?.error?.code || data?.code || `HTTP_${status}_ERROR`; // Adjusted to check common patterns
-      // Prioritize specific error message from backend response
-      errorMessage = data?.error?.message || data?.message || error.message; // Adjusted
-      errorDetails = data?.error?.details || data?.details || null;
+      errorCode =
+        backendData?.error?.code || backendData?.code || `HTTP_${status}_ERROR`;
+      errorMessage =
+        backendData?.error?.message ||
+        backendData?.message ||
+        augmentedError.message;
+      errorDetails =
+        backendData?.error?.details || backendData?.details || null;
 
       console.error(
         `API Error ${status} (${errorCode}): ${errorMessage}`,
         errorDetails
-      ); // Keep console for visibility
+      );
 
       // Handle specific HTTP statuses
       if (status === 401) {
-        // Authentication required - Should be handled by specific logic triggering logout (A.3)
-        errorMessage =
-          data?.error?.message || "Authentication failed or session expired.";
+        userFriendlyMessage =
+          "Authentication failed or session expired. Please log in again.";
         console.warn(
           "Received 401 Unauthorized. Application should trigger logout."
         );
-        // Note: Direct signOut() call commented out as it should ideally be handled
-        // by the consuming code (e.g., React Query global onError) based on the error status.
-        // signOut({ callbackUrl: '/login' });
       } else if (status === 403) {
-        // Permission denied
-        errorMessage = data?.error?.message || "Permission denied.";
-        // Note: Direct toast commented out - handle in consuming code (A.3)
-        // toast.error(errorMessage);
+        userFriendlyMessage =
+          "You do not have permission to perform this action.";
       } else if (status >= 400 && status < 500) {
-        // Other client errors (400, 404, 409, 422 etc.) - Log warning, reject for specific handling
         Sentry.captureMessage(`Client Error ${status}: ${errorMessage}`, {
           level: "warning",
           extra: {
             code: errorCode,
             details: errorDetails,
-            config: error.config,
+            config: augmentedError.config, // Access config via casted error
           },
         });
-        // Reject so that React Query's onError or specific form handlers can use the error details
-        // (including errorCode and specific message from backend)
-        // Adding structured error details to the rejected error object
-        error.structuredError = {
-          code: errorCode,
-          message: errorMessage,
-          details: errorDetails,
-          status: statusCode,
-        };
-        return Promise.reject(error);
+
+        switch (errorCode) {
+          case "INVALID_INPUT":
+          case "VALIDATION_ERROR":
+            userFriendlyMessage =
+              "Please check the information you provided and try again.";
+            break;
+          case "NOT_FOUND":
+            userFriendlyMessage = "The requested item could not be found.";
+            break;
+          case "INVALID_TOKEN":
+            userFriendlyMessage =
+              "The provided token is invalid or has expired.";
+            break;
+          default:
+            userFriendlyMessage =
+              errorMessage !== augmentedError.message // Use casted error here too
+                ? errorMessage
+                : "An error occurred. Please try again.";
+        }
       } else if (status >= 500) {
-        // Server errors - Log error, reject with generic message for UI
-        errorMessage =
-          "A server error occurred. Please try again later or contact support."; // Generic message
-        Sentry.captureException(error, {
+        userFriendlyMessage =
+          "A server error occurred. Please try again later or contact support.";
+        Sentry.captureException(augmentedError, {
+          // Capture the original error object
           extra: {
             code: errorCode,
             details: errorDetails,
-            config: error.config,
+            config: augmentedError.config, // Access config via casted error
           },
           level: "error",
         });
-        // Note: Direct toast commented out - handle in consuming code (A.3)
-        // toast.error(errorMessage);
       }
-    } else if (error.request) {
-      // Network error: No response received
+    } else if (augmentedError.request) {
       errorCode = "NETWORK_NO_RESPONSE";
-      errorMessage =
+      userFriendlyMessage =
         "Could not reach the server. Please check your connection.";
-      console.error("Network Error: No response received", error.request);
-      Sentry.captureException(error, {
+      console.error(
+        "Network Error: No response received",
+        augmentedError.request
+      );
+      Sentry.captureException(augmentedError, {
         level: "error",
         extra: { code: errorCode },
       });
-      // Note: Direct toast commented out - handle in consuming code (A.3)
-      // toast.error(errorMessage);
     } else {
-      // Request setup error
       errorCode = "REQUEST_SETUP_ERROR";
-      errorMessage = "Error setting up request. Please try again.";
-      console.error("Request Setup Error", error.message);
-      Sentry.captureException(error, {
+      userFriendlyMessage = "Error setting up request. Please try again.";
+      console.error("Request Setup Error", augmentedError.message);
+      Sentry.captureException(augmentedError, {
         level: "error",
         extra: { code: errorCode },
       });
-      // Note: Direct toast commented out - handle in consuming code (A.3)
-      // toast.error(errorMessage);
     }
 
-    // Add structured error details for consistent handling by consuming code
-    error.structuredError = {
+    // Explicitly cast to the augmented type when ASSIGNING the custom property.
+    // This tells TS "trust me, this property exists now because of the module augmentation".
+    augmentedError.structuredError = {
       code: errorCode,
-      message: errorMessage, // Use potentially refined message
+      message: userFriendlyMessage,
       details: errorDetails,
       status: statusCode,
     };
 
-    return Promise.reject(error);
+    return Promise.reject(augmentedError); // Reject the original (now modified) error object
   }
 );
 

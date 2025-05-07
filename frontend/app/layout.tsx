@@ -1,7 +1,7 @@
 // File: frontend/app/layout.tsx
 // Task IDs: FE-014 (React Query Provider), FE-016 (Routing Layers), FE-051 (Header/Footer), FE-052 (Error Boundary implied), FE-053 (Not Found implied), FE-001 (TS/Tailwind setup), FE-005-R (Global Styles), FE-015 (Zustand implied usage)
-// Description: Root application layout applying global structure (Header/Footer), Providers (ReactQueryProvider, NextAuth SessionProvider), global styles, and root metadata.
-// Status: Revised based on analysis findings (Applying Recommendations A.1, A.2, B.1, B.2).
+// Description: Root application layout applying global structure (Header/Footer), Providers (ReactQueryProvider, NextAuth SessionProvider), global styles, and root metadata. Using Sonner for toasts.
+// Status: Revised - Applied optional recommendation B.1 (JSDoc for metadata).
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -12,10 +12,14 @@ import { SessionProvider } from "next-auth/react"; // Needed for client-side ses
 // Note: Zustand store access (FE-015) typically handled via direct hook imports, no specific Provider needed here unless complex SSR hydration is implemented.
 import Header from "@/components/layout/Header"; // Header component implementation expected from FE-BL-005
 import Footer from "@/components/layout/Footer"; // Footer component implementation expected from FE-BL-005
-import { Toaster } from "@/components/ui/toaster"; // Toaster component for global notifications (verify task if needed)
+import { Toaster as SonnerToaster } from "sonner"; // IMPORT Sonner Toaster directly
 
 const inter = Inter({ subsets: ["latin"] });
 
+/**
+ * Defines the default metadata for the application, including title template and description.
+ * This is used by Next.js to populate HTML head tags.
+ */
 export const metadata: Metadata = {
   title: {
     template: "%s | Biomevity Marketplace",
@@ -28,7 +32,7 @@ export const metadata: Metadata = {
 /**
  * Root layout component for the entire application.
  * Sets up global styles, fonts, context providers (React Query, NextAuth),
- * and the main page structure (Header, Main Content, Footer).
+ * and the main page structure (Header, Main Content, Footer). Includes Sonner for toasts.
  * @param {Readonly<{ children: React.ReactNode }>} props - Component props including children pages/layouts.
  */
 export default function RootLayout({
@@ -51,8 +55,8 @@ export default function RootLayout({
             </main>
             {/* Footer component defined in FE-BL-005 */}
             <Footer />
-            {/* Global component for displaying toast notifications */}
-            <Toaster />
+            {/* Global component for displaying Sonner toast notifications */}
+            <SonnerToaster richColors position="top-right" />
             {/* Conditionally render React Query DevTools only in development */}
             {process.env.NODE_ENV === "development" && (
               <ReactQueryDevtools initialIsOpen={false} />

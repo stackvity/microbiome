@@ -1,0 +1,117 @@
+# .github/workflows/frontend-ci.yml
+# Rationale: GitHub Actions CI workflow: runs lint, format check, tests, build, security scan (`npm audit`), and E2E tests.
+# Task ID: FE-051, FE-083, FE-086, FE-087
+# User Story Reference: US-FE-051, US-FE-054, US-FE-055
+
+name: Frontend CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-format-test-build:
+    name: Lint, Format, Test & Build Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linters
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Run unit and integration tests
+        run: npm test -- --coverage
+
+      - name: Run dependency vulnerability scan
+        run: npm audit --audit-level=high
+
+      - name: Build application
+        run: npm run build
+        # Build artifacts (like .next folder) are implicitly available for subsequent jobs if needed,
+        # or can be explicitly uploaded/downloaded using actions/upload-artifact and actions/download-artifact.
+        # For this workflow, the build mainly verifies success.
+
+  e2e-tests:
+    name: Frontend E2E Tests
+    runs-on: ubuntu-latest
+    needs: lint-format-test-build # Run after successful build and unit/integration tests
+    if: github.event_name == 'pull_request' # Optionally run E2E only on PRs to save resources, or always
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application for E2E
+        run: npm run build
+        env:
+          # For E2E tests on PRs, it's common to mock the backend or use a dedicated test/preview backend.
+          # Using localhost implies some form of local server or mock setup during the test run.
+          NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://localhost:9000
+
+      - name: Run Cypress E2E tests
+        run: npm run test:e2e:run # Assumes script "start-server-and-test dev http://localhost:3000 cy:run"
+        # This script starts the dev server (or a preview server) and then runs Cypress tests against it.
+        # Consider using cypress-io/github-action for more features like dashboard recording.
+        # Example with cypress-io/github-action (more comprehensive):
+        # uses: cypress-io/github-action@v6
+        # with:
+        #   working-directory: frontend
+        #   build: npm run build
+        #   start: npm run start # or a specific command to serve the build for tests
+        #   wait-on: 'http://localhost:3000' # URL to wait for before starting tests
+        #   browser: chrome # Specify browser if needed
+        #   record: ${{ secrets.CYPRESS_RECORD_KEY != '' }} # Example for Cypress Dashboard
+        #   env: группа_записи=${{ github.run_id }} # Example for grouping runs
+
+      - name: Upload E2E test artifacts
+        if: failure() # Upload artifacts only if E2E tests fail
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-e2e-artifacts-${{ github.run_number }}
+          path: |
+            frontend/cypress/screenshots
+            frontend/cypress/videos

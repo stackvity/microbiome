@@ -1,0 +1,87 @@
+# .github/workflows/frontend-prod-deploy.yml
+# Rationale: GitHub Actions workflow for manual deployment trigger to Vercel Production, requires approval.
+# Task ID: FE-085
+# User Story Reference: US-FE-053
+
+name: Frontend Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "Commit SHA to deploy (default: latest main branch commit that passed staging tests)"
+        required: false
+        default: ""
+      # Potentially add an input for a release version/tag if using Git tags for releases
+
+concurrency:
+  group: ${{ github.workflow }}-production
+  cancel-in-progress: false # Production deploys should not be cancelled by new runs
+
+jobs:
+  deploy-production:
+    name: Deploy to Vercel Production
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://www.biomevity.com # Replace with actual production URL if different
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # If commit_sha is empty, this defaults to the ref that triggered the workflow_dispatch (usually main).
+          # A more robust approach would be to fetch the SHA of the last successful staging deployment.
+          # For MVP, relying on manual input or latest `main` (which should have passed staging tests) is acceptable.
+          ref: ${{ github.event.inputs.commit_sha || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+        env:
+          NEXT_PUBLIC_MEDUSA_BACKEND_URL: ${{ secrets.PRODUCTION_MEDUSA_BACKEND_URL }}
+          # Ensure NEXT_PUBLIC_SENTRY_ENVIRONMENT=production is set in Vercel Production project settings for the build.
+
+      - name: Deploy to Vercel Production
+        id: deploy-vercel-production
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
+          production: true
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
+
+      - name: Output Vercel deployment URL
+        run: | # Corrected line: Use literal block scalar
+          echo "Deployed to Production: ${{ steps.deploy-vercel-production.outputs.url }}"
+
+      - name: Notify for Production Smoke Tests
+        if: success()
+        run: |
+          echo "Production deployment successful. Please perform smoke tests immediately."
+          echo "URL: https://www.biomevity.com" # Or ${{ steps.deploy-vercel-production.outputs.url }}
+          # Add integration here to send a Slack message (e.g., rtCamp/action-slack-notify@v2)
+          # or create a Jira ticket, etc.
+          # Example Slack:
+          # - name: Send Slack Notification for Smoke Tests
+          #   uses: rtCamp/action-slack-notify@v2
+          #   env:
+          #     SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_SMOKE_TESTS }}
+          #     SLACK_MESSAGE: '🚀 Frontend Production Deployment Successful! Please perform smoke tests: https://www.biomevity.com (Commit: ${{ github.sha }})'
+          #     SLACK_COLOR: 'good'
+          #     SLACK_USERNAME: 'GitHub Actions - FE Prod Deploy'

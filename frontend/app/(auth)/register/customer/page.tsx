@@ -1,8 +1,9 @@
+/* START OF FILE frontend/app/(auth)/register/customer/page.tsx */
 // File: frontend/app/(auth)/register/customer/page.tsx
 // Task IDs: FE-017, FE-043, FE-046, FE-049, FE-056
 // Description: Revised Customer Registration page integrating RHF/Zod via component,
-//              API submission via hook, loading/error handling.
-// Status: Revised based on Recommendations A.1, A.2, A.3, A.4, A.6. Requires CustomerRegisterForm, useRegisterCustomerMutation, and related types/schemas.
+//              API submission via hook, loading/error handling using Sonner for toasts.
+// Status: Corrected - Fixed import paths for toast, component, and types based on analysis. Uses generic RegisterForm.
 
 "use client";
 
@@ -11,11 +12,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "@/components/ui/use-toast";
-import CustomerRegisterForm from "@/components/auth/CustomerRegisterForm"; // Assumed component
-import { useRegisterCustomerMutation } from "@/hooks/mutations/useAuthMutations"; // Assumed hook
-import { CustomerRegisterSchema } from "@/lib/zodSchemas"; // Assumed schema
-import type { CustomerRegisterUserInput } from "@/lib/types/auth";
+// import { toast } from "@/components/ui/use-toast"; // REMOVED - Incorrect path and library
+import { toast } from "sonner"; // CORRECTED - Use Sonner for toasts
+// import CustomerRegisterForm from "@/components/auth/CustomerRegisterForm"; // REMOVED - Use generic RegisterForm
+import RegisterForm from "@/components/auth/RegisterForm"; // CORRECTED - Import generic RegisterForm
+import { useRegisterCustomerMutation } from "@/hooks/mutations/useAuthMutations"; // Assumed hook exists
+import { CustomerRegisterSchema } from "@/lib/zodSchemas"; // Assumed schema exists
+// import type { CustomerRegisterUserInput } from "@/lib/types/auth"; // REMOVED - Incorrect path
+import type { CustomerRegisterUserInput } from "@/lib/zodSchemas"; // CORRECTED - Type derived from Zod schema
 
 /**
  * Customer Registration Page Component.
@@ -44,8 +48,8 @@ export default function CustomerRegisterPage() {
 
     registerCustomer(submitData, {
       onSuccess: () => {
-        toast({
-          title: "Registration Successful",
+        // Use Sonner success toast
+        toast.success("Registration Successful", {
           description: "Please log in with your new account.",
         });
         router.push("/login");
@@ -55,10 +59,10 @@ export default function CustomerRegisterPage() {
           error?.response?.data?.error?.message ||
           error?.structuredError?.message ||
           "Registration failed. Please try again.";
-        toast({
-          title: "Registration Failed",
+
+        // Use Sonner error toast
+        toast.error("Registration Failed", {
           description: errorMessage,
-          variant: "destructive",
         });
 
         // Example: Set form error if email exists (based on common BE response)
@@ -72,7 +76,11 @@ export default function CustomerRegisterPage() {
           });
         } else {
           // Set a generic error on the root if no specific field known
-          // setError('root.serverError', { type: 'server', message: errorMessage });
+          // This requires the RegisterForm to handle root.serverError
+          setError("root.serverError", {
+            type: "server",
+            message: errorMessage,
+          });
         }
       },
     });
@@ -83,7 +91,9 @@ export default function CustomerRegisterPage() {
       <h1 className="text-2xl font-semibold text-center">
         Create Customer Account
       </h1>
-      <CustomerRegisterForm
+      {/* Use the generic RegisterForm with appropriate type */}
+      <RegisterForm<CustomerRegisterUserInput>
+        formType="customer"
         onSubmit={handleRegister}
         isPending={isPending}
         formInstance={form} // Pass form instance for potential server errors
@@ -100,3 +110,4 @@ export default function CustomerRegisterPage() {
     </div>
   );
 }
+/* END OF FILE frontend/app/(auth)/register/customer/page.tsx */

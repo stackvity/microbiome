@@ -1,7 +1,7 @@
 // File: frontend/types/product.ts
 // Task ID: FE-018 (US-FE-011 - Core Utilities & Types)
 // Description: Defines core TypeScript types and interfaces related to Product entities.
-// Status: Revised - Added more specific JSDoc comments. Type details require ongoing verification against API/DB.
+// Status: Revised - Added product.handle to ProductVariant for CartLineItem linking.
 
 /**
  * Represents the structure for displaying a price amount.
@@ -32,7 +32,7 @@ export interface ProductSummary {
   id: string; // UUID
   title: string;
   handle: string | null;
-  thumbnail?: string | null; // URL
+  thumbnail?: string | null;
   variants?: ProductVariantSummary[];
 }
 
@@ -78,6 +78,12 @@ export interface ProductVariant extends ProductVariantSummary {
   manage_inventory?: boolean;
   allow_backorder?: boolean;
   options?: ProductOptionValue[];
+  product: {
+    // ADDED THIS to include parent product's handle
+    handle: string | null;
+    // id: string; // Could be added if needed
+    // title: string; // Could be added if needed
+  };
 }
 
 /**

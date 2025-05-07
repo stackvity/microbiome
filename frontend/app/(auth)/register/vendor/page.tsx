@@ -1,8 +1,9 @@
+/* START OF FILE frontend/app/(auth)/register/vendor/page.tsx */
 // File: frontend/app/(auth)/register/vendor/page.tsx
 // Task IDs: FE-017, FE-044, FE-047, FE-049, FE-056
 // Description: Revised Vendor Registration page integrating RHF/Zod via component,
-//              API submission via hook, loading/error handling.
-// Status: Revised based on Recommendations A.1, A.2, A.3, A.4, A.6. Requires VendorRegisterForm, useRegisterVendorMutation, and related types/schemas.
+//              API submission via hook, loading/error handling using Sonner toasts.
+// Status: Corrected - Fixed import paths for toast, component, and types based on analysis. Uses generic RegisterForm.
 
 "use client";
 
@@ -11,11 +12,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "@/components/ui/use-toast";
-import VendorRegisterForm from "@/components/auth/VendorRegisterForm"; // Assumed component
-import { useRegisterVendorMutation } from "@/hooks/mutations/useAuthMutations"; // Assumed hook
-import { VendorRegisterSchema } from "@/lib/zodSchemas"; // Assumed schema
-import type { VendorRegisterUserInput } from "@/lib/types/auth";
+// import { toast } from "@/components/ui/use-toast"; // REMOVED - Incorrect path and library
+import { toast } from "sonner"; // CORRECTED - Use Sonner for toasts
+// import VendorRegisterForm from "@/components/auth/VendorRegisterForm"; // REMOVED - Use generic RegisterForm
+import RegisterForm from "@/components/auth/RegisterForm"; // CORRECTED - Import generic RegisterForm
+import { useRegisterVendorMutation } from "@/hooks/mutations/useAuthMutations"; // Assumed hook exists
+import { VendorRegisterSchema } from "@/lib/zodSchemas"; // Assumed schema exists
+// import type { VendorRegisterUserInput } from "@/lib/types/auth"; // REMOVED - Incorrect path
+import type { VendorRegisterUserInput } from "@/lib/zodSchemas"; // CORRECTED - Type derived from Zod schema
 
 /**
  * Vendor Registration Page Component.
@@ -39,6 +43,10 @@ export default function VendorRegisterPage() {
       business_city: "",
       business_postal_code: "",
       business_country_code: "", // Maybe default to 'US'?
+      business_province: "",
+      business_website: "",
+      tax_id: "",
+      phone: "",
     },
   });
   const { setError } = form;
@@ -50,8 +58,8 @@ export default function VendorRegisterPage() {
 
     registerVendor(submitData, {
       onSuccess: () => {
-        toast({
-          title: "Application Submitted",
+        // Use Sonner success toast
+        toast.success("Application Submitted", {
           description:
             "Your vendor application has been received and is under review. You will be notified via email.",
         });
@@ -63,10 +71,10 @@ export default function VendorRegisterPage() {
           error?.response?.data?.error?.message ||
           error?.structuredError?.message ||
           "Application submission failed. Please try again.";
-        toast({
-          title: "Application Failed",
+
+        // Use Sonner error toast
+        toast.error("Application Failed", {
           description: errorMessage,
-          variant: "destructive",
         });
 
         // Example: Set form error if email exists
@@ -80,7 +88,11 @@ export default function VendorRegisterPage() {
           });
         } else {
           // Set a generic error on the root if no specific field known
-          // setError('root.serverError', { type: 'server', message: errorMessage });
+          // This requires the RegisterForm to handle root.serverError
+          setError("root.serverError", {
+            type: "server",
+            message: errorMessage,
+          });
         }
       },
     });
@@ -93,7 +105,9 @@ export default function VendorRegisterPage() {
         Submit your application to sell on the Biomevity Marketplace.
         Applications are manually reviewed.
       </p>
-      <VendorRegisterForm
+      {/* Use the generic RegisterForm with appropriate type */}
+      <RegisterForm<VendorRegisterUserInput>
+        formType="vendor"
         onSubmit={handleRegister}
         isPending={isPending}
         formInstance={form} // Pass form instance for potential server errors
@@ -110,3 +124,4 @@ export default function VendorRegisterPage() {
     </div>
   );
 }
+/* END OF FILE frontend/app/(auth)/register/vendor/page.tsx */

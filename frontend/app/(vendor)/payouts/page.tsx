@@ -6,7 +6,7 @@
 import React from "react";
 // Import the actual container component once implemented
 // import PayoutSettingsContainer from '@/components/vendor/PayoutSettingsContainer';
-import { Button } from "@/components/ui/button"; // Example
+import { Button } from "@/components/ui/Button"; // Example
 
 // Placeholder component until the actual PayoutSettingsContainer is implemented
 const PayoutSettingsContainerPlaceholder = () => (

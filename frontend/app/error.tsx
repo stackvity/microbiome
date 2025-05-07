@@ -1,13 +1,13 @@
+/* START OF FILE frontend/app/error.tsx */
 // File: frontend/app/error.tsx
 // Task IDs: FE-052 (US-FE-025 - Root Error Boundary)
-// Description: Root error boundary for the application using Next.js App Router convention. Catches errors during rendering, displays a user-friendly message, logs to Sentry, and provides a recovery mechanism.
-// Status: Revised - No code changes from previous version based on analysis. Sentry DSN configuration needs external verification (Rec A.3).
+// Status: Corrected - Fixed import path casing for Button component.
 
 "use client"; // Error components must be Client Components
 
 import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button"; // CORRECTED: Path uses PascalCase 'Button'
 import Link from "next/link";
 
 /**
@@ -23,7 +23,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log error to Sentry. Ensure DSN is configured (Rec A.3).
+    // Log error to Sentry. Ensure DSN is configured.
     Sentry.captureException(error);
   }, [error]);
 
@@ -71,3 +71,4 @@ export default function GlobalError({
     </html>
   );
 }
+/* END OF FILE frontend/app/error.tsx */

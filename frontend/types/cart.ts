@@ -1,9 +1,9 @@
 // File: frontend/types/cart.ts
 // Task ID: FE-018 (US-FE-011 - Core Utilities & Types)
 // Description: Defines core TypeScript types and interfaces related to Cart and LineItem entities.
-// Status: Revised - Added more specific JSDoc comments. Type details require ongoing verification against API/DB.
+// Status: Revised - Changed LineItem.variant to use ProductVariant type. Added region object to Cart type.
 
-import type { ProductVariantSummary } from "./product";
+import type { ProductVariant } from "./product";
 import type { Address } from "./user";
 
 /**
@@ -15,6 +15,7 @@ export interface ShippingOption {
   name: string;
   amount?: number; // Price in cents
   price_type?: "flat_rate" | "calculated";
+  // Potentially other fields like region_id, requirements, etc.
 }
 
 /**
@@ -26,6 +27,7 @@ export interface ShippingMethod {
   shipping_option_id: string;
   price: number; // Snapshotted price in cents
   shipping_option?: ShippingOption; // Often includes nested details
+  // Potentially other fields like data, tax_lines
 }
 
 /**
@@ -43,10 +45,11 @@ export interface LineItem {
   quantity: number;
   unit_price: number; // Price per unit in cents (snapshot)
   allow_discounts?: boolean;
-  variant?: ProductVariantSummary;
+  variant?: ProductVariant; // CHANGED: from ProductVariantSummary to ProductVariant
   // Calculated totals (may come from API)
   subtotal?: number;
   total?: number;
+  // potentially tax_lines, adjustments here
 }
 
 /**
@@ -58,6 +61,23 @@ export interface Cart {
   user_id?: string | null;
   email?: string | null;
   region_id?: string | null;
+  region?: {
+    // ADDED: Nested region object
+    id: string;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
+    name: string;
+    currency_code: string; // This is where currencyCode comes from
+    tax_rate: number | null;
+    tax_code: string | null;
+    gift_cards_taxable: boolean;
+    automatic_taxes: boolean;
+    countries: any[]; // Define Country type if needed
+    payment_providers: any[]; // Define PaymentProvider type if needed
+    fulfillment_providers: any[]; // Define FulfillmentProvider type if needed
+    metadata: Record<string, unknown> | null;
+  } | null;
   items: LineItem[];
   shipping_address?: Address | null;
   billing_address?: Address | null;
@@ -68,6 +88,7 @@ export interface Cart {
   tax_total?: number;
   total?: number;
   // metadata?: Record<string, unknown> | null;
+  // Potentially other fields like discounts, gift_cards, payment_sessions
 }
 
 /**
